@@ -80,17 +80,20 @@ func backupRepos(username, token string, numWorkers int, destDir string) {
 	fmt.Println("After filtering:", len(allRepos))
 
 	completionCh := make(chan models.Repo)
-	gitCloneCh := make(chan models.Repo, len(allRepos))
-	zipCh := make(chan models.Repo, len(allRepos))
+	gitCloneCh := make(chan models.Repo)
+	zipCh := make(chan models.Repo)
 
 	for i := 0; i < numWorkers; i++ {
 		go zipProcess(zipCh, completionCh, destDir)
 		go gitCloneProcess(gitCloneCh, zipCh, token, destDir)
 	}
 
-	for _, repo := range allRepos {
-		gitCloneCh <- repo
-	}
+	go func() {
+		for _, repo := range allRepos {
+			gitCloneCh <- repo
+		}
+		close(gitCloneCh)
+	}()
 
 	// This works for synchronization, so it's not necessary to use a WaitGroup.
 	for i := 0; i < len(allRepos); i++ {
@@ -98,15 +101,14 @@ func backupRepos(username, token string, numWorkers int, destDir string) {
 		fmt.Printf("(%d/%d) Completed %s\n", i+1, len(allRepos), repo.Name)
 	}
 
+	close(zipCh)
+	close(completionCh)
+
 	util.WriteJSON(path.Join(destDir, "updated-at.json"), util.PatchList(currentSaved, allRepos))
 	fmt.Println(time.Now())
 	fmt.Println("Backup complete:", destDir)
 }
 
-// TODO: I think the output folder must be parameterizable, because I have no idea
-// how I'm going to distribute this software... is it going to be its own github repo? or will
-// it be part of the configs repo?? I think it can be its own repo because it contains nothing
-// sensitive
 // TODO: should be able to work without token... that way I just clone the public repos.
 func main() {
 	username := flag.String("username", "", "GitHub username")
