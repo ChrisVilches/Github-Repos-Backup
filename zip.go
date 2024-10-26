@@ -2,18 +2,25 @@ package main
 
 import (
 	"context"
-	"github.com/mholt/archiver/v4"
 	"os"
+	"path/filepath"
+
+	"github.com/mholt/archiver/v4"
 )
 
 func zipDirectory(destName, srcName string) error {
-	out, _ := os.Create(destName)
+	out, err := os.Create(destName)
+
+	if err != nil {
+		return err
+	}
 
 	defer out.Close()
 
+	baseFolder := filepath.Base(srcName)
+
 	files, err := archiver.FilesFromDisk(nil, map[string]string{
-		// TODO: The nesting is extremely fucked up.
-		srcName: "something-goes-here",
+		srcName: baseFolder,
 	})
 
 	if err != nil {
