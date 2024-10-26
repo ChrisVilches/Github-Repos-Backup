@@ -6,7 +6,7 @@ import (
 	"github-backup-repos/github"
 	"github-backup-repos/models"
 	"github-backup-repos/util"
-	"os"
+	"log"
 	"path"
 	"path/filepath"
 	"sync"
@@ -149,10 +149,7 @@ func backupRepos(username, token string, numWorkers int, destDir string) error {
 	return nil
 }
 
-const (
-	errorStatusCode = 1
-	numWorkers      = 10
-)
+const numWorkers = 10
 
 // TODO: should be able to work without token... that way I just clone the public repos.
 func main() {
@@ -163,28 +160,24 @@ func main() {
 	flag.Parse()
 
 	if *destDir == "" {
-		fmt.Println("Destination directory is required.")
 		flag.Usage()
-		os.Exit(errorStatusCode)
+		log.Fatal("Destination directory is required.")
 	}
 
 	if *username == "" || *token == "" {
-		fmt.Println("Both username and token are required.")
 		flag.Usage()
-		os.Exit(errorStatusCode)
+		log.Fatal("Both username and token are required.")
 	}
 
 	finalPath, err := filepath.Abs(*destDir)
 
 	if err != nil {
-		fmt.Println("Error getting absolute path:", err)
-		os.Exit(errorStatusCode)
+		log.Fatalf("Error getting absolute path:", err)
 	}
 
 	err = backupRepos(*username, *token, numWorkers, finalPath)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(errorStatusCode)
+		log.Fatal(err)
 	}
 }
