@@ -22,7 +22,7 @@ func zipDirectory(destName, srcName string) {
 	}
 }
 
-func ZipRepo(src, dest string, removeOriginal bool) {
+func zipRepo(src, dest string, removeOriginal bool) {
 	zipDirectory(dest, src)
 
 	if removeOriginal {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -45,21 +46,53 @@ func filterOwnerRepos(repos []models.Repo, username string) []models.Repo {
 	return result
 }
 
-func zipProcess(input, output chan models.Repo, destDir string) {
-	for repo := range input {
-		src := path.Join(destDir, repo.Name)
-		dest := path.Join(destDir, fmt.Sprintf("%s.zip", repo.Name))
-		ZipRepo(src, dest, true)
-		output <- repo
+func zipProcess(jobs <-chan models.Repo, numWorkers int, destDir string) <-chan models.Repo {
+	zipped := make(chan models.Repo)
+	var wg sync.WaitGroup
+
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			for repo := range jobs {
+				src := path.Join(destDir, repo.Name)
+				dest := path.Join(destDir, fmt.Sprintf("%s.zip", repo.Name))
+				zipRepo(src, dest, true)
+				zipped <- repo
+			}
+			wg.Done()
+		}()
 	}
+
+	go func() {
+		wg.Wait()
+		close(zipped)
+	}()
+
+	return zipped
 }
 
-func gitCloneProcess(input, output chan models.Repo, token, cloneDestDir string) {
-	for repo := range input {
-		fmt.Println("Cloning...", repo.Name)
-		github.CloneRepo(repo.Owner.Login, repo.Name, token, cloneDestDir)
-		output <- repo
+func gitCloneProcess(jobs <-chan models.Repo, numWorkers int, token, cloneDestDir string) <-chan models.Repo {
+	cloned := make(chan models.Repo)
+	var wg sync.WaitGroup
+
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			for repo := range jobs {
+				fmt.Println("Cloning...", repo.Name)
+				github.CloneRepo(repo.Owner.Login, repo.Name, token, cloneDestDir)
+				cloned <- repo
+			}
+			wg.Done()
+		}()
 	}
+
+	go func() {
+		wg.Wait()
+		close(cloned)
+	}()
+
+	return cloned
 }
 
 func backupRepos(username, token string, numWorkers int, destDir string) {
@@ -79,30 +112,19 @@ func backupRepos(username, token string, numWorkers int, destDir string) {
 
 	fmt.Println("After filtering:", len(allRepos))
 
-	completionCh := make(chan models.Repo)
-	gitCloneCh := make(chan models.Repo)
-	zipCh := make(chan models.Repo)
+	jobs := util.ListToReadonlyChannel(allRepos, 0)
 
-	for i := 0; i < numWorkers; i++ {
-		go zipProcess(zipCh, completionCh, destDir)
-		go gitCloneProcess(gitCloneCh, zipCh, token, destDir)
+	completionCh := zipProcess(
+		gitCloneProcess(jobs, numWorkers, token, destDir),
+		numWorkers,
+		destDir,
+	)
+
+	idx := 1
+	for repo := range completionCh {
+		fmt.Printf("(%d/%d) Completed %s\n", idx, len(allRepos), repo.Name)
+		idx++
 	}
-
-	go func() {
-		for _, repo := range allRepos {
-			gitCloneCh <- repo
-		}
-		close(gitCloneCh)
-	}()
-
-	// This works for synchronization, so it's not necessary to use a WaitGroup.
-	for i := 0; i < len(allRepos); i++ {
-		repo := <-completionCh
-		fmt.Printf("(%d/%d) Completed %s\n", i+1, len(allRepos), repo.Name)
-	}
-
-	close(zipCh)
-	close(completionCh)
 
 	util.WriteJSON(path.Join(destDir, "updated-at.json"), util.PatchList(currentSaved, allRepos))
 	fmt.Println(time.Now())

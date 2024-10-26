@@ -1,10 +1,24 @@
 package util
 
-type WithID interface {
+type withID interface {
 	GetID() string
 }
 
-func PatchList[T WithID](list, replacements []T) []T {
+func ListToReadonlyChannel[T any](list []T, size int) <-chan T {
+	res := make(chan T, size)
+
+	go func() {
+		for _, elem := range list {
+			res <- elem
+		}
+
+		close(res)
+	}()
+
+	return res
+}
+
+func PatchList[T withID](list, replacements []T) []T {
 	data := make(map[string]T)
 
 	for _, item := range list {
