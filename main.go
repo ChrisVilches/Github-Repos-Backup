@@ -46,6 +46,15 @@ func filterOwnerRepos(repos []models.Repo, username string) []models.Repo {
 	return result
 }
 
+func zipWork(repo models.Repo, destDir string) {
+	src := path.Join(destDir, repo.Name)
+	dest := path.Join(destDir, fmt.Sprintf("%s.zip", repo.Name))
+	err := zipRepo(src, dest, true)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func zipProcess(jobs <-chan models.Repo, numWorkers int, destDir string) <-chan models.Repo {
 	zipped := make(chan models.Repo)
 	var wg sync.WaitGroup
@@ -54,9 +63,7 @@ func zipProcess(jobs <-chan models.Repo, numWorkers int, destDir string) <-chan 
 		wg.Add(1)
 		go func() {
 			for repo := range jobs {
-				src := path.Join(destDir, repo.Name)
-				dest := path.Join(destDir, fmt.Sprintf("%s.zip", repo.Name))
-				zipRepo(src, dest, true)
+				zipWork(repo, destDir)
 				zipped <- repo
 			}
 			wg.Done()

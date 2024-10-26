@@ -1,5 +1,8 @@
 enableAllRules = true
 
+[rule.flag-parameter]
+  Disabled = true
+
 [rule.line-length-limit]
   arguments = [100]
 

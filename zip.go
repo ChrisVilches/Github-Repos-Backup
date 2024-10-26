@@ -6,26 +6,35 @@ import (
 	"os"
 )
 
-func zipDirectory(destName, srcName string) {
+func zipDirectory(destName, srcName string) error {
 	out, _ := os.Create(destName)
 
 	defer out.Close()
-	// TODO: I think this needs more error handling, and probably the rest of the program too
-	files, _ := archiver.FilesFromDisk(nil, map[string]string{
+
+	files, err := archiver.FilesFromDisk(nil, map[string]string{
 		// TODO: The nesting is extremely fucked up.
 		srcName: "something-goes-here",
 	})
-	zipArchiver := archiver.Zip{}
-	err := zipArchiver.Archive(context.Background(), out, files)
+
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	zipArchiver := archiver.Zip{}
+
+	return zipArchiver.Archive(context.Background(), out, files)
 }
 
-func zipRepo(src, dest string, removeOriginal bool) {
-	zipDirectory(dest, src)
+func zipRepo(src, dest string, removeOriginal bool) error {
+	err := zipDirectory(dest, src)
+
+	if err != nil {
+		return err
+	}
 
 	if removeOriginal {
-		os.RemoveAll(src)
+		return os.RemoveAll(src)
 	}
+
+	return nil
 }

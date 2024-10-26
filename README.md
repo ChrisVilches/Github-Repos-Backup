@@ -11,7 +11,7 @@ Tool for creating a back-up of all your GitHub repositories.
 go install
 ```
 
-3. Run the following command in the terminal:
+3. Run the following command on the terminal:
 
 Check the usage of the tool by running the following command in the terminal:
 
@@ -19,3 +19,10 @@ Check the usage of the tool by running the following command in the terminal:
 github-repos-backup -h
 ```
 
+## Development
+
+Linting:
+
+```sh
+revive --formatter stylish ./...
+```
