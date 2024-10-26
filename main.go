@@ -71,7 +71,12 @@ func zipProcess(jobs <-chan models.Repo, numWorkers int, destDir string) <-chan 
 	return zipped
 }
 
-func gitCloneProcess(jobs <-chan models.Repo, numWorkers int, token, cloneDestDir string) <-chan models.Repo {
+func gitCloneProcess(
+	jobs <-chan models.Repo,
+	numWorkers int,
+	token,
+	cloneDestDir string,
+) <-chan models.Repo {
 	cloned := make(chan models.Repo)
 	var wg sync.WaitGroup
 
@@ -95,9 +100,13 @@ func gitCloneProcess(jobs <-chan models.Repo, numWorkers int, token, cloneDestDi
 	return cloned
 }
 
-func backupRepos(username, token string, numWorkers int, destDir string) {
+func backupRepos(username, token string, numWorkers int, destDir string) error {
 	fmt.Println(time.Now())
-	allRepos := github.GetAllRepos(username, token)
+	allRepos, err := github.GetAllRepos(token)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("Total:", len(allRepos))
 
 	currentSaved, err := util.ReadJSON[models.Repo](path.Join(destDir, "updated-at.json"))
@@ -129,7 +138,14 @@ func backupRepos(username, token string, numWorkers int, destDir string) {
 	util.WriteJSON(path.Join(destDir, "updated-at.json"), util.PatchList(currentSaved, allRepos))
 	fmt.Println(time.Now())
 	fmt.Println("Backup complete:", destDir)
+
+	return nil
 }
+
+const (
+	errorStatusCode = 1
+	numWorkers      = 10
+)
 
 // TODO: should be able to work without token... that way I just clone the public repos.
 func main() {
@@ -142,23 +158,26 @@ func main() {
 	if *destDir == "" {
 		fmt.Println("Destination directory is required.")
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(errorStatusCode)
 	}
 
 	if *username == "" || *token == "" {
 		fmt.Println("Both username and token are required.")
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(errorStatusCode)
 	}
-
-	numWorkers := 10
 
 	finalPath, err := filepath.Abs(*destDir)
 
 	if err != nil {
 		fmt.Println("Error getting absolute path:", err)
-		os.Exit(1)
+		os.Exit(errorStatusCode)
 	}
 
-	backupRepos(*username, *token, numWorkers, finalPath)
+	err = backupRepos(*username, *token, numWorkers, finalPath)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(errorStatusCode)
+	}
 }

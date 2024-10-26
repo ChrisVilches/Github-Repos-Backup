@@ -7,10 +7,10 @@ import (
 )
 
 func CloneRepo(username, repoName, token, destDir string) {
-	gitUrl := fmt.Sprintf("https://%s:%s@github.com/%s/%s.git", username, token, username, repoName)
+	gitURL := fmt.Sprintf("https://%s:%s@github.com/%s/%s.git", username, token, username, repoName)
 
 	dest := path.Join(destDir, repoName)
-	cmd := exec.Command("git", "clone", gitUrl, dest)
+	cmd := exec.Command("git", "clone", gitURL, dest)
 
 	err := cmd.Run()
 

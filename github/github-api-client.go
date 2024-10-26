@@ -5,22 +5,21 @@ import (
 	"fmt"
 	"github-backup-repos/models"
 	"net/http"
-	"os"
 	"strconv"
 )
 
-func GetAllRepos(username, token string) []models.Repo {
-	perPage := 30
+const perPage = 30
+
+func GetAllRepos(token string) ([]models.Repo, error) {
 	allRepos := []models.Repo{}
 
 	url := "https://api.github.com/user/repos"
 
 	for page := 1; ; page++ {
-
 		req, err := http.NewRequest("GET", url, nil)
+
 		if err != nil {
-			// TODO: This should be a log, not a panic. Or dunno.
-			panic(err)
+			return nil, err
 		}
 
 		q := req.URL.Query()
@@ -33,7 +32,7 @@ func GetAllRepos(username, token string) []models.Repo {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		defer resp.Body.Close()
@@ -41,7 +40,7 @@ func GetAllRepos(username, token string) []models.Repo {
 		var repos []models.Repo
 		if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
 			fmt.Printf("Error decoding response: %s\n", err)
-			os.Exit(1)
+			return nil, err
 		}
 
 		fmt.Println("Fetched page", page, "with", len(repos), "repos")
@@ -53,5 +52,5 @@ func GetAllRepos(username, token string) []models.Repo {
 		}
 	}
 
-	return allRepos
+	return allRepos, nil
 }
