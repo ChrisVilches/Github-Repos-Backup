@@ -172,7 +172,7 @@ func main() {
 	finalPath, err := filepath.Abs(*destDir)
 
 	if err != nil {
-		log.Fatalf("Error getting absolute path:", err)
+		log.Fatal("Error getting absolute path:", err)
 	}
 
 	err = backupRepos(*username, *token, numWorkers, finalPath)
